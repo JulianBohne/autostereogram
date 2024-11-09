@@ -1,0 +1,193 @@
+\documentclass{article}
+
+% Packages
+\usepackage[a4paper,margin=3cm]{geometry}
+\usepackage{amsmath}
+
+% Commands
+\renewcommand{\vec}{\mathbf}
+\newcommand{\mat}{\mathbf}
+\renewcommand{\d}{\partial}
+\renewcommand{\min}{\mathrm{min}}
+\renewcommand{\max}{\mathrm{max}}
+
+% Document setup
+\title{Ray Intersections With Depth Maps}
+\author{Julian Bohnenkämper}
+
+\begin{document}
+\maketitle
+
+\section{Basics}
+View ray position $ \vec{v} = [v_x, v_y, v_z]^\top $ with direction $ \vec{w} = [w_x, w_y, w_z]^\top $.
+The corresponding ray equation is:
+$$
+    \vec{v} + a \vec{w}
+$$
+
+The original camera is $ h $ unity away from the origin.
+
+The following equation is for a ray from a pixel along the depth towards the camera.
+\begin{align*}
+    & \begin{bmatrix}
+        x \\
+        y \\
+        0
+    \end{bmatrix}
+    +
+    \frac{b}{h}
+    \Bigg(
+        \begin{bmatrix}
+            0 \\
+            0 \\
+            h
+        \end{bmatrix}
+        -
+        \begin{bmatrix}
+            x \\
+            y \\
+            0
+        \end{bmatrix}
+    \Bigg)\\
+    = & \begin{bmatrix}
+        x \\
+        y \\
+        0
+    \end{bmatrix}
+    +
+    \frac{b}{h}
+    \begin{bmatrix}
+        -x \\
+        -y \\
+        h
+    \end{bmatrix}\\
+    = & \begin{bmatrix}
+        x \\
+        y \\
+        0
+    \end{bmatrix}
+    +
+    b
+    \begin{bmatrix}
+        -x/h \\
+        -y/h \\
+        1
+    \end{bmatrix}
+\end{align*}
+
+Now we need to find for which $x$'s and $y$'s an intersection with the view ray exists.
+
+\begin{align*}
+    & \vec{v} + a \vec{w} = \begin{bmatrix}
+        x \\
+        y \\
+        0
+    \end{bmatrix}
+    +
+    b
+    \begin{bmatrix}
+        -x/h \\
+        -y/h \\
+        1
+    \end{bmatrix}\\
+    \iff & \begin{cases}
+        v_x + a \cdot w_x = x - \frac{b}{h} \cdot x \\
+        v_y + a \cdot w_y = y - \frac{b}{h} \cdot y \\
+        v_z + a \cdot w_z = b
+    \end{cases}\\
+    \iff & \begin{cases}
+        v_x + a \cdot w_x = (1 - \frac{b}{h}) \cdot x \\
+        v_y + a \cdot w_y = (1 - \frac{b}{h}) \cdot y \\
+        v_z + a \cdot w_z = b
+    \end{cases}\\
+    \iff & \begin{cases}
+        \frac{v_x + a \cdot w_x}{1 - b/h} = x \\
+        \frac{v_y + a \cdot w_y}{1 - b/h} = y \\
+        v_z + a \cdot w_z = b
+    \end{cases}\\
+    \implies & \begin{cases}
+        \frac{v_x + a \cdot w_x}{1 - (v_z + a \cdot w_z)/h} = x \\
+        \frac{v_y + a \cdot w_y}{1 - (v_z + a \cdot w_z)/h} = y
+    \end{cases}\\
+    \iff & \frac{1}{1 - (v_z + a \cdot w_z)/h}
+    \bigg(
+        \begin{bmatrix}
+            v_x \\
+            v_y
+        \end{bmatrix}
+        +
+        a
+        \begin{bmatrix}
+            w_x \\
+            w_y
+        \end{bmatrix}
+    \bigg)
+    =
+    \begin{bmatrix}
+        x \\
+        y
+    \end{bmatrix}\\
+    \iff & \frac{\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}}{1 - (v_z + a \cdot w_z)/h} = [x, y]^\top
+\end{align*}
+
+Derivatives might be useful:
+\begin{align*}
+    \frac{\d [x, y]^\top}{\d a} &= \frac{\d}{\d a} \frac{\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}}{1 - (v_z + a \cdot w_z)/h} \\
+    &= \frac{\vec{w}_{x,y}}{1 - (v_z + a \cdot w_z)/h} + (\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}) \cdot \frac{\d}{\d a} \frac{1}{1 - (v_z + a \cdot w_z)/h} \\
+    &= \frac{\vec{w}_{x,y}}{1 - (v_z + a \cdot w_z)/h} + (\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}) \cdot \frac{1}{(1 - (v_z + a \cdot w_z)/h)^2} \cdot \frac{\d}{\d a} \Big(1 - \frac{v_z + a \cdot w_z}{h}\Big)\\
+    &= \frac{\vec{w}_{x,y}}{1 - (v_z + a \cdot w_z)/h} + \frac{\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}}{(1 - (v_z + a \cdot w_z)/h)^2} \cdot \frac{w_z}{h}\\
+    &= \frac{1}{1 - (v_z + a \cdot w_z)/h} \cdot \Big( \vec{w}_{x,y} + \frac{\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}}{1 - (v_z + a \cdot w_z)/h} \cdot \frac{w_z}{h} \Big)\\
+    &= c(a) \cdot \Big( \vec{w}_{x,y} + (\vec{v}_{x,y} + a \cdot \vec{w}_{x,y}) \cdot \frac{w_z \cdot c(a)}{h} \Big)\\
+    &= c(a) \cdot \Big( \vec{w}_{x,y} + \frac{w_z \cdot c(a)}{h} \cdot \vec{v}_{x,y} + a \cdot \frac{w_z \cdot c(a)}{h} \cdot \vec{w}_{x,y} \Big)\\
+    &= c(a) \cdot \Big( \frac{w_z \cdot c(a)}{h} \cdot \vec{v}_{x,y} + \Big(1 + a \cdot \frac{w_z \cdot c(a)}{h} \Big) \cdot \vec{w}_{x,y} \Big)\\
+\end{align*}
+Eh, this derivative is not super pretty (maybe it can be simplified, but I feel like this won't be used anyways).
+
+Another useful thingo could be a start and end point for $a$. These are easy to find with this equation:
+$$ v_z + a \cdot w_z = b. $$
+
+Simply use the bounds of $b$ which we denote as $b_\min$ and $b_\max$ and solve for the corresponding $a_\min$ and $a_\max$:
+$$ a_\min = \frac{b_\max - v_z}{w_z} \text{ and } a_\max = \frac{b_\min - v_z}{w_z} $$
+Remember, min and max are reversed for $a$ and $b$ because $\vec{w}$ usually points in a negative direction.
+
+Another useful thing we can do is solve for $a$ to get a specific $x$ or $y$ coordinate:
+\begin{align*}
+         & \frac{v_x + w_x \cdot a}{1 - (v_z + w_z \cdot a)/h} = x \\
+    \iff & v_x + w_x \cdot a = \Big(1 - \frac{v_z + w_z \cdot a}{h} \Big) \cdot x \\
+    \iff & v_x + w_x \cdot a = x - \frac{v_z \cdot x}{h} + \frac{w_z \cdot x}{h} \cdot a \\
+    \iff & w_x \cdot a - \frac{w_z \cdot x }{h} \cdot a = x - \frac{v_z \cdot x}{h} - v_x \\
+    \iff & \Big( w_x - \frac{w_z \cdot x }{h} \Big) \cdot a = x - \frac{v_z \cdot x}{h} - v_x \\
+    \iff & a = \frac{x - \frac{v_z \cdot x}{h} - v_x}{w_x - \frac{w_z \cdot x}{h}} \\
+    \iff & a = \frac{x - \Big( v_x - \frac{v_z \cdot x}{h} \Big)}{w_x - \frac{w_z \cdot x}{h}} \\
+\end{align*}
+TODO: Find a nicer way to write this (my guess is, that this can be a bit prettier)
+
+\begin{align*}
+    % & \frac{v_x + w_x \cdot (a_0 + \Delta a)}{1 - (v_z + w_z \cdot (a_0 + \Delta a))/h} = x_0 + \Delta x \\
+    % \iff & \frac{v_x + w_x \cdot (a_0 + \Delta a)}{1 - (v_z + w_z \cdot (a_0 + \Delta a))/h} = x_0 + \Delta x \\
+         & a_0 + \Delta a = \frac{(x_0 + \Delta x) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )}{w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}} \\
+    \iff & \frac{x_0 - ( v_x - \frac{v_z \cdot x_0}{h} )}{w_x - \frac{w_z \cdot x_0}{h}} + \Delta a = \frac{(x_0 + \Delta x) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )}{w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}} \\
+    \iff & \Delta a = \frac{(x_0 + \Delta x) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )}{w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}} - \frac{x_0 - ( v_x - \frac{v_z \cdot x_0}{h} )}{w_x - \frac{w_z \cdot x_0}{h}} \\
+    \iff & \Delta a = \frac{(x_0 + \Delta x) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )}{w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}} \cdot \frac{w_x - \frac{w_z \cdot x_0}{h}}{w_x - \frac{w_z \cdot x_0}{h}} - \frac{x_0 - ( v_x - \frac{v_z \cdot x_0}{h} )}{w_x - \frac{w_z \cdot x_0}{h}} \cdot \frac{w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}}{w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}} \\
+    \iff & \Delta a = \frac{(x_0 + \Delta x)(w_x - \frac{w_z \cdot x_0}{h}) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )(w_x - \frac{w_z \cdot x_0}{h})}{( w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h} ) (w_x - \frac{w_z \cdot x_0}{h})} \\
+         &- \frac{x_0 (w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}) - ( v_x - \frac{v_z \cdot x_0}{h} ) (w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h})}{(w_x - \frac{w_z \cdot x_0}{h})(w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h})} \\
+    \iff & \Delta a = \frac{1}{(w_x - \frac{w_z \cdot x_0}{h})(w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h})} \\ 
+         &\cdot ((x_0 + \Delta x)(w_x - \frac{w_z \cdot x_0}{h}) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )(w_x - \frac{w_z \cdot x_0}{h}) \\
+         &- (x_0 (w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}) - ( v_x - \frac{v_z \cdot x_0}{h} ) (w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}))) \\
+    \iff & \Delta a = \frac{1}{(w_x - \frac{w_z \cdot x_0}{h})(w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h})} \\ 
+         &\cdot ((x_0 + \Delta x)(w_x - \frac{w_z \cdot x_0}{h}) - ( v_x - \frac{v_z \cdot (x_0 + \Delta x)}{h} )(w_x - \frac{w_z \cdot x_0}{h}) \\
+         &- (x_0 (w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}) - ( v_x - \frac{v_z \cdot x_0}{h} ) (w_x - \frac{w_z \cdot (x_0 + \Delta x)}{h}))) \\
+\end{align*}
+
+$$
+\frac{\Delta x - v_{x} + x_{0} + \frac{v_{z} \left(\Delta x + x_{0}\right)}{h}}{w_{x} - \frac{w_{z} \left(\Delta x + x_{0}\right)}{h}} - \frac{- v_{x} + x_{0} + \frac{v_{z} x_{0}}{h}}{w_{x} - \frac{w_{z} x_{0}}{h}}
+$$
+$$
+\frac{\Delta x \cdot h \left(h w_{x} - v_{x} w_{z} + v_{z} w_{x}\right)}{- \Delta x \cdot h w_{x} w_{z} + \Delta x w_{z}^{2} x_{0} + h^{2} w_{x}^{2} - 2 h w_{x} w_{z} x_{0} + w_{z}^{2} x_{0}^{2}}
+$$
+$$
+\Delta a = \frac{\Delta x h \left(h w_{x} - v_{x} w_{z} + v_{z} w_{x}\right)}{\left(h w_{x} - w_{z} x_{0}\right) \left(- \Delta x w_{z} + h w_{x} - w_{z} x_{0}\right)}
+$$
+This was "generated" with \texttt{sympy}.
+
+\end{document}
