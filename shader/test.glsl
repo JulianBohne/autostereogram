@@ -16,7 +16,7 @@ uniform vec2 mouse;
 uniform float h = 1.0;
 uniform vec3 pos = vec3(0.0, 0.0, 1.0);
 uniform float depthMin = -0.5;
-uniform float depthMax = 0.25;
+uniform float depthMax = 0.5;
 
 out vec4 finalColor;
 
@@ -64,8 +64,27 @@ vec3 rotateX(vec3 v, float angle){
 void main() {
     vec2 viewOffset = (mouse - 0.5);
 
-    vec3 v   = rotateY(rotateX(pos, viewOffset.y), -viewOffset.x);
-    vec3 dir = rotateY(rotateX(normalize(vec3(fragTexCoord - 0.5, -1.0)), viewOffset.y), -viewOffset.x);
+
+    // vec3 v   = rotateY(rotateX(pos, viewOffset.y), -viewOffset.x);
+    // vec3 v_prime = vec3(-v.x, v.yz);
+
+    // float rotateViewBy = 0.0;
+
+    // vec3 dir = rotateY(rotateX(normalize(vec3(fragTexCoord - 0.5, -1.0)), viewOffset.y*rotateViewBy), -viewOffset.x*rotateViewBy);
+
+    vec3 v = pos + vec3(viewOffset, 0.0);
+    vec3 v_prime = vec3(-v.x, v.yz);
+    float rayOffsetX = v.x;
+
+    vec3 dir = normalize(vec3(fragTexCoord - 0.5, -1.0) - vec3(rayOffsetX, 0.0, 0.0));
+
+
+    // // Second eye uv coords basis vectors
+    // vec3 uBasis_prime = rotateY(rotateX(vec3(1.0, 0.0, 0.0), viewOffset.y*rotateViewBy), viewOffset.x*rotateViewBy);
+    // vec3 vBasis_prime = rotateY(rotateX(vec3(0.0, -1.0, 0.0), viewOffset.y*rotateViewBy), viewOffset.x*rotateViewBy);
+    // Second eye uv coords basis vectors
+    vec3 uBasis_prime = vec3(1.0, 0.0, 0.0);
+    vec3 vBasis_prime = vec3(0.0, -1.0, 0.0);
     
     float a = getMinA(v.z, dir.z);
     float maxA = getMaxA(v.z, dir.z);
@@ -82,5 +101,40 @@ void main() {
         a += deltaA;
     }
 
-    finalColor = texture(texture0, uv) * fragColor;
+    // finalColor = texture(texture0, uv);
+    // return;
+
+    vec3 hitPos = v + dir * a;
+    vec3 otherDir = normalize(v_prime - hitPos);
+    hitPos += otherDir * deltaA*2;
+
+    vec2 otherEyeCoords = vec2(dot(-otherDir / otherDir.z, uBasis_prime), dot(otherDir / otherDir.z, vBasis_prime)) - vec2(rayOffsetX, 0.0);
+    bool insideOtherCoords = all(lessThan(abs(otherEyeCoords), vec2(0.5)));
+
+    if (insideOtherCoords) {        
+
+        float maxA_prime = length(v_prime - hitPos);
+        a = 0.0;
+
+        while(a < maxA_prime) {
+            vec3 c_current = hitPos + otherDir * a;
+            uv = projectedPosToUV(getProjectedPos(c_current));
+            float depth = texture(depthTexture, uv).x * (depthMax - depthMin) + depthMin;
+
+            if (depth > c_current.z) break;
+
+            a += deltaA;
+        }
+
+        if (a < maxA_prime) {
+            finalColor = texture(texture0, fragTexCoord);
+            // finalColor = vec4(0.0, 0.0, 1.0, 1.0);
+        } else {
+            finalColor = texture(texture0, otherEyeCoords + 0.5);
+            // finalColor = vec4(1.0, 0.0, 1.0, 1.0);
+        }
+
+    } else {
+        finalColor = texture(texture0, fragTexCoord);
+    }
 }
