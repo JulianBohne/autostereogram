@@ -5,12 +5,12 @@
 
 int main(int argc, char** argv) {
 
-    const char* img_path = "res/debug-dot.png";
-    const char* depth_img_path = "res/debug-dot.png";
+    const char* img_path = "res/small-dog.png";
+    const char* depth_img_path = "res/small-dog.png";
 
     Image img = LoadImage(img_path);
 
-    int scale = 1;
+    int scale = 2;
 
     InitWindow(img.width*scale, img.height*scale, img_path);
     SetTargetFPS(60);
@@ -29,6 +29,8 @@ int main(int argc, char** argv) {
     Shader testShader = LoadShader(NULL, "shader/test.glsl");
     Shader noiseShader = LoadShader(NULL, "shader/noise.glsl");
 
+    int noise_seed_loc = GetShaderLocation(noiseShader, "noiseSeed");
+
     int time_loc = GetShaderLocation(testShader, "time");
     int mouse_loc = GetShaderLocation(testShader, "mouse");
     int depth_texture_loc = GetShaderLocation(testShader, "depthTexture");
@@ -42,33 +44,42 @@ int main(int argc, char** argv) {
     SetTextureWrap(tex, TEXTURE_WRAP_CLAMP);
     SetTextureWrap(depthTex, TEXTURE_WRAP_CLAMP);
 
-    BeginTextureMode(renderTex);
-        BeginShaderMode(noiseShader);
-            DrawRectangle(0, 0, img.width, img.height, WHITE);
-        EndShaderMode();
-    EndTextureMode();
+
     
     while (!WindowShouldClose()) {
-        float time = GetTime();
-        Vector2 mouse = (Vector2){ 0.75, 0.5 };
-        // Vector2 mouse =  Vector2Divide(GetMousePosition(), (Vector2){ GetRenderWidth(), GetRenderHeight() });
+        HideCursor();
 
-        BeginTextureMode(renderSwap);
-            BeginShaderMode(testShader);
-                SetShaderValueTexture(testShader, depth_texture_loc, depthTex);
-                SetShaderValue(testShader, time_loc, &time, SHADER_UNIFORM_FLOAT);
-                SetShaderValue(testShader, mouse_loc, &mouse, SHADER_UNIFORM_VEC2);
-                DrawTexturePro(renderTex.texture, (Rectangle){ 0, 0, (float)depthTex.width, -(float)depthTex.height }, (Rectangle){ 0, 0, (float)depthTex.width, (float)depthTex.height}, (Vector2){ 0, 0 }, 0.0f, WHITE);
+        float time = GetTime();
+        // Vector2 mouse = (Vector2){ 0.5, 0.5 };
+        Vector2 mouse =  Vector2Divide(GetMousePosition(), (Vector2){ GetRenderWidth(), GetRenderHeight() });
+
+        BeginTextureMode(renderTex);
+            BeginShaderMode(noiseShader);
+                SetShaderValue(noiseShader, noise_seed_loc, &time, SHADER_UNIFORM_FLOAT);
+                DrawRectangle(0, 0, img.width, img.height, WHITE);
+                // DrawTexture(tex, 0, 0, WHITE);
             EndShaderMode();
         EndTextureMode();
-        
-        // swap textures
-        RenderTexture2D tmp = renderSwap;
-        renderSwap = renderTex;
-        renderTex = tmp;
+
+        for (int i = 0; i < 10; ++i) {
+
+            BeginTextureMode(renderSwap);
+                BeginShaderMode(testShader);
+                    SetShaderValueTexture(testShader, depth_texture_loc, depthTex);
+                    SetShaderValue(testShader, time_loc, &time, SHADER_UNIFORM_FLOAT);
+                    SetShaderValue(testShader, mouse_loc, &mouse, SHADER_UNIFORM_VEC2);
+                    DrawTexturePro(renderTex.texture, (Rectangle){ 0, 0, (float)depthTex.width, -(float)depthTex.height }, (Rectangle){ 0, 0, (float)depthTex.width, (float)depthTex.height}, (Vector2){ 0, 0 }, 0.0f, WHITE);
+                EndShaderMode();
+            EndTextureMode();
+            
+            // swap textures
+            RenderTexture2D tmp = renderSwap;
+            renderSwap = renderTex;
+            renderTex = tmp;
+        }
 
         BeginDrawing();
-            DrawTextureEx(renderSwap.texture, (Vector2){ 0.0, 0.0 }, 0.0, 1.0*scale, WHITE);
+            DrawTextureEx(renderTex.texture, (Vector2){ 0.0, 0.0 }, 0.0, 1.0*scale, WHITE);
         EndDrawing();
 
 

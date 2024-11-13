@@ -15,8 +15,8 @@ uniform vec2 mouse;
 
 uniform float h = 1.0;
 uniform vec3 pos = vec3(0.0, 0.0, 1.0);
-uniform float depthMin = -0.5;
-uniform float depthMax = 0.5;
+uniform float depthMin = -1.5;
+uniform float depthMax = -0.5;
 
 out vec4 finalColor;
 
@@ -62,7 +62,7 @@ vec3 rotateX(vec3 v, float angle){
 }
 
 void main() {
-    vec2 viewOffset = (mouse - 0.5);
+    vec2 viewOffset = (vec2(0.65, 0.5) - 0.5);
 
 
     // vec3 v   = rotateY(rotateX(pos, viewOffset.y), -viewOffset.x);
@@ -88,12 +88,12 @@ void main() {
     
     float a = getMinA(v.z, dir.z);
     float maxA = getMaxA(v.z, dir.z);
-    float deltaA = 0.001;
+    float deltaA = 0.01;
     vec2 uv;
 
     while (a < maxA) {
         vec3 c_current = v + dir * a;
-        uv = projectedPosToUV(getProjectedPos(c_current));
+        uv = projectedPosToUV(getProjectedPos(c_current)) - (mouse - 0.5);
         float depth = texture(depthTexture, uv).x * (depthMax - depthMin) + depthMin;
 
         if (depth > c_current.z) break;
@@ -118,7 +118,7 @@ void main() {
 
         while(a < maxA_prime) {
             vec3 c_current = hitPos + otherDir * a;
-            uv = projectedPosToUV(getProjectedPos(c_current));
+            uv = projectedPosToUV(getProjectedPos(c_current)) - (mouse - 0.5);
             float depth = texture(depthTexture, uv).x * (depthMax - depthMin) + depthMin;
 
             if (depth > c_current.z) break;
