@@ -12,10 +12,7 @@ int main(int argc, char** argv) {
 
     int scale = 2;
 
-    SetConfigFlags(FLAG_FULLSCREEN_MODE);
-
-    // InitWindow(img.width*scale, img.height*scale, img_path);
-    InitWindow(GetScreenWidth(), GetScreenHeight(), img_path);
+    InitWindow(img.width*scale, img.height*scale, img_path);
     SetTargetFPS(60);
     
     // Set default internal texture (1px white) and rectangle to be used for shapes drawing
@@ -31,6 +28,10 @@ int main(int argc, char** argv) {
 
     Shader testShader = LoadShader(NULL, "shader/test.glsl");
     Shader noiseShader = LoadShader(NULL, "shader/noise.glsl");
+    Shader mangoShader = LoadShader(NULL, "shader/mango.glsl");
+    Shader uvTransferShader = LoadShader(NULL, "shader/transfer.glsl");
+
+    int pattern_texture_loc = GetShaderLocation(uvTransferShader, "patternTex");
 
     int noise_seed_loc = GetShaderLocation(noiseShader, "noiseSeed");
 
@@ -46,8 +47,11 @@ int main(int argc, char** argv) {
 
     RenderTexture2D renderTex = LoadRenderTexture(img.width, img.height);
     RenderTexture2D renderSwap = LoadRenderTexture(img.width, img.height);
+    RenderTexture2D patternTex = LoadRenderTexture(img.width, img.height);
 
     SetTextureWrap(tex, TEXTURE_WRAP_CLAMP);
+    SetTextureWrap(renderTex.texture, TEXTURE_WRAP_CLAMP);
+    SetTextureWrap(renderSwap.texture, TEXTURE_WRAP_CLAMP);
     SetTextureWrap(depthTex, TEXTURE_WRAP_CLAMP);
 
     float depthMin = -1.5;
@@ -82,7 +86,7 @@ int main(int argc, char** argv) {
         // Vector2 mouse = (Vector2){ 0.5, 0.5 };
         Vector2 mouse =  Vector2Divide(GetMousePosition(), (Vector2){ GetRenderWidth(), GetRenderHeight() });
 
-        BeginTextureMode(renderTex);
+        BeginTextureMode(patternTex);
             BeginShaderMode(noiseShader);
                 SetShaderValue(noiseShader, noise_seed_loc, &time, SHADER_UNIFORM_FLOAT);
                 DrawRectangle(0, 0, img.width, img.height, WHITE);
@@ -90,8 +94,22 @@ int main(int argc, char** argv) {
             EndShaderMode();
         EndTextureMode();
 
-        for (int i = 0; i < 10; ++i) {
+        BeginTextureMode(renderSwap);
+            BeginShaderMode(mangoShader);
+                DrawRectangle(0, 0, img.width, img.height, WHITE);
+            EndShaderMode();
+        EndTextureMode();
 
+        BeginTextureMode(renderTex);
+            BeginShaderMode(testShader);
+                SetShaderValueTexture(testShader, depth_texture_loc, depthTex);
+                SetShaderValue(testShader, time_loc, &time, SHADER_UNIFORM_FLOAT);
+                SetShaderValue(testShader, mouse_loc, &mouse, SHADER_UNIFORM_VEC2);
+                DrawTexturePro(renderSwap.texture, (Rectangle){ 0, 0, (float)depthTex.width, -(float)depthTex.height }, (Rectangle){ 0, 0, (float)depthTex.width, (float)depthTex.height}, (Vector2){ 0, 0 }, 0.0f, WHITE);
+            EndShaderMode();
+        EndTextureMode();
+
+        for (int i = 0; i < 5; ++i) {
             BeginTextureMode(renderSwap);
                 BeginShaderMode(testShader);
                     SetShaderValueTexture(testShader, depth_texture_loc, depthTex);
@@ -111,10 +129,11 @@ int main(int argc, char** argv) {
         }
 
         BeginDrawing();
-            DrawTextureEx(renderTex.texture, (Vector2){ 0.0, 0.0 }, 0.0, 1.0*scale, WHITE);
+            BeginShaderMode(uvTransferShader);
+                SetShaderValueTexture(uvTransferShader, pattern_texture_loc, patternTex.texture);
+                DrawTextureEx(renderTex.texture, (Vector2){ 0.0, 0.0 }, 0.0, 1.0*scale, WHITE);
+            EndShaderMode();
         EndDrawing();
-
-
     }
 
     CloseWindow();
