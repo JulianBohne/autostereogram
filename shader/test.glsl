@@ -17,6 +17,7 @@ uniform float h = 1.0;
 uniform vec3 pos = vec3(0.0, 0.0, 1.0);
 uniform float depthMin = -1.5;
 uniform float depthMax = -0.5;
+uniform float eyeOffset = 0.15;
 
 out vec4 finalColor;
 
@@ -62,7 +63,7 @@ vec3 rotateX(vec3 v, float angle){
 }
 
 void main() {
-    vec2 viewOffset = (vec2(0.65, 0.5) - 0.5);
+    vec2 viewOffset = (vec2(0.5 + eyeOffset, 0.5) - 0.5);
 
 
     // vec3 v   = rotateY(rotateX(pos, viewOffset.y), -viewOffset.x);
