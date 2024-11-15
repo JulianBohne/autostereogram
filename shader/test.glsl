@@ -89,7 +89,7 @@ void main() {
     
     float a = getMinA(v.z, dir.z);
     float maxA = getMaxA(v.z, dir.z);
-    float deltaA = 0.01;
+    float deltaA = 0.001;
     vec2 uv;
 
     while (a < maxA) {

@@ -13,7 +13,8 @@ out vec4 finalColor;
 
 void main() {
 
-	vec2 uv = texture(texture0, fragTexCoord).xy;
+	// Need to flip the uv :|
+	vec2 uv = texture(texture0, fragTexCoord).xy * vec2(1.0, -1.0) + vec2(0.0, 1.0);
 
 	finalColor = texture(patternTex, uv);
 }
